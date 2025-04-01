@@ -16,21 +16,20 @@ api_configs = {
     "SambaNova": {
         "api_key": os.environ.get("SAMBANOVA_API_KEY"),
         "url_base": "https://api.sambanova.ai/v1",
-        "support_prefill": False
+        "support_prefill": False,
     },
     "Together": {
         "api_key": os.environ.get("TOGETHER_API_KEY"),
         "url_base": "https://api.together.xyz/v1",
-        "support_prefill": True
+        "support_prefill": True,
     },
-    "Groq":{
+    "Groq": {
         "api_key": os.environ.get("GROQ_API_KEY"),
         "url_base": "GROQ",
-        "support_prefill": True
-    }
+        "support_prefill": True,
+    },
     # You can add more API configurations here for other providers
 }
-
 
 
 def setup_logging():
@@ -38,27 +37,36 @@ def setup_logging():
     log_filename = f"/mnt/lustre/work/wu/wkn601/absexpl_data/swift_logs/swiftsage_log_{timestamp}.txt"
     # create folder if it doesn't exist
     os.makedirs("/mnt/lustre/work/wu/wkn601/absexpl_data/swift_logs", exist_ok=True)
-    
+
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         filename=log_filename,
-        filemode='w'
+        filemode="w",
     )
-    
+
     # Also print to console
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
     console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
+    logging.getLogger("").addHandler(console)
 
-    return logging.getLogger('SwiftSage')
+    return logging.getLogger("SwiftSage")
 
- 
 
 def extract_and_parse_markup(text):
-    keys = ["reasoning_steps", "final_answer", "feedback", "score", "critical_feedback", "revised_plan", "solved", "plan", "code"]
+    keys = [
+        "reasoning_steps",
+        "final_answer",
+        "feedback",
+        "score",
+        "critical_feedback",
+        "revised_plan",
+        "solved",
+        "plan",
+        "code",
+    ]
     result = {}
     if "<final_answer>" in text and "</final_answer>" not in text:
         text = text + "</final_answer>"
@@ -67,24 +75,24 @@ def extract_and_parse_markup(text):
 
     for key in keys:
         # Create a pattern for each key
-        pattern = f'<{key}>(.*?)</{key}>'
-        
+        pattern = f"<{key}>(.*?)</{key}>"
+
         # Search for the pattern in the text
         match = re.search(pattern, text, re.DOTALL)
-        
+
         if match:
             # Extract the content, strip whitespace, and add to the result
             content = match.group(1).strip()
             result[key] = content
 
     if "code" in result.keys():
-        # find the first full code block inside ```python and ``` and extract the code if any 
+        # find the first full code block inside ```python and ``` and extract the code if any
         if "```python" in result["code"]:
-            code_block_pattern = r'```python\s*([\s\S]*?)\s*```'
+            code_block_pattern = r"```python\s*([\s\S]*?)\s*```"
             code_blocks = re.findall(code_block_pattern, result["code"], re.IGNORECASE)
             if code_blocks:
                 result["code"] = code_blocks[0]
-        
+
         # result["code"] = result["code"].replace("```python", "").replace("```", "").strip()
 
     return result
@@ -97,33 +105,46 @@ class PromptTemplate:
         self.load_templates()
 
     def load_templates(self):
-        for filename in ['swift_template.md', 'sage_template.md', 'feedback_template.md']:
-            with open(os.path.join(self.template_dir, filename), 'r') as f:
-                key = filename.split('_')[0]
+        for filename in [
+            "swift_template.md",
+            "sage_template.md",
+            "feedback_template.md",
+            "teacher_template.md",
+            "student_template.md",
+        ]:
+            with open(os.path.join(self.template_dir, filename), "r") as f:
+                key = filename.split("_")[0]
                 self.templates[key] = f.read()
 
     def format(self, key, **kwargs):
         template = self.templates.get(key, "")
         for k, v in kwargs.items():
-            template = template.replace("<" + k + ">", str(v)) 
+            template = template.replace("<" + k + ">", str(v))
         return template
 
 
 class LLMClient:
-    def __init__(self, model_id, api_config, temperature=0.3, top_p=1.0, max_tokens=2048, logger=None):
-        if api_config['url_base'] == "GROQ":
-            self.client = Groq(api_key=api_config['api_key'])
+    def __init__(
+        self,
+        model_id,
+        api_config,
+        temperature=0.3,
+        top_p=1.0,
+        max_tokens=2048,
+        logger=None,
+    ):
+        if api_config["url_base"] == "GROQ":
+            self.client = Groq(api_key=api_config["api_key"])
         else:
             # openai api
             self.client = openai.OpenAI(
-                api_key=api_config['api_key'],
-                base_url=api_config['url_base']
+                api_key=api_config["api_key"], base_url=api_config["url_base"]
             )
         self.model_id = model_id
-        # A float that controls the randomness of the model's output (default is 0.3). 
+        # A float that controls the randomness of the model's output (default is 0.3).
         # Lower values make the output more deterministic.
-        self.temperature = temperature 
-        # A float that controls the nucleus sampling (default is 1.0). 
+        self.temperature = temperature
+        # A float that controls the nucleus sampling (default is 1.0).
         # It determines the cumulative probability for token selection.
         self.top_p = top_p
         # An integer that controls the maximum number of tokens in the response (default is 2048).
@@ -144,7 +165,7 @@ class LLMClient:
             messages=messages,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=self.max_tokens
+            max_tokens=self.max_tokens,
         )
         # debug print
         print(f"model_id: {self.model_id}")
@@ -152,9 +173,6 @@ class LLMClient:
         content = response.choices[0].message.content
         self.logger.info(f"Response from {self.model_id}:\n{content}")
         return content
-
-
-
 
 
 if __name__ == "__main__":
@@ -177,7 +195,5 @@ print("9.11 is larger" if 9.11 > 9.8 else "9.8 is larger")
 ```
 </code>
     """
-     
-    print(extract_and_parse_markup(test_text))
 
- 
+    print(extract_and_parse_markup(test_text))
