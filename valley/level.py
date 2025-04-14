@@ -54,6 +54,7 @@ class Level:
         # Trees
         for obj in tmx_data.get_layer_by_name("Trees"):
             Tree((obj.x, obj.y), obj.image, [self.all_sprites, self.collision_sprites], obj.name)
+            # Tree((obj.x, obj.y), obj.image, [self.all_sprites, self.collision_sprites], 'Small')
 
         # Wildflowers
         for obj in tmx_data.get_layer_by_name("Decoration"):
