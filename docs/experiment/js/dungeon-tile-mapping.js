@@ -7,16 +7,15 @@ export default {
   FLOOR: {
     STONE:    1,
     CRACKED:  2,
-    MOSSY:    3,
-    WATER:    4
+    MOSSY:    3
   },
 
   WALL: {
     STONE: {
-      TOP:      5, BOTTOM: 6,
-      LEFT:     7, RIGHT:  8,
-      CORNER_NE:9, CORNER_NW:10,
-      CORNER_SE:11, CORNER_SW:12
+      TOP:      10, BOTTOM: 11,
+      LEFT:     12, RIGHT:  13,
+      CORNER_NE:14, CORNER_NW:15,
+      CORNER_SE:16, CORNER_SW:17
     },
     CRACKED: {
       TOP:      20, BOTTOM: 21,
@@ -27,8 +26,8 @@ export default {
   },
 
   DOOR: {
-    HORIZONTAL: { closed: 1, open: 2 },
-    VERTICAL: { closed: 3, open: 4 }
+    horz: { closed: 30, open: 31 },
+    vert: { closed: 32, open: 33 }
   },
 
   WATER: {
@@ -43,11 +42,11 @@ export default {
   },
 
   OBJECT: {
-    CHEST:       70,
-    BARREL:      71,
-    CRATE:       72,
-    POT:         73,
-    TORCH:       74
+    BARREL:      70,
+    CRATE:       71,
+    PILE_GOLD:   72,
+    KEY:         73,
+    POT:         74
   },
 
   DECOR: {
@@ -59,16 +58,5 @@ export default {
   FIRE: {
     SMALL:        100,
     ANIM:        [101,102,103,104]
-  },
-
-  CHARACTER: {
-    PLAYER: 1,
-    ENEMY: 2,
-    NPC: 3
-  },
-
-  LEVER: {
-    OFF: 5,
-    ON: 6
   }
 };

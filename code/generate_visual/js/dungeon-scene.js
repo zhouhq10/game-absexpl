@@ -1,11 +1,14 @@
 import TILES from "./dungeon-tile-mapping.js";
 
+// Insert trial name to visualize below
 export let gridName = "test";
 
-let gridStr;
-import(`../dungeon_trials/${gridName}.js`)
-  .then(m => gridStr = m.default)
-  .catch(err => console.error("Failed to load dungeon JSON:", err));
+let grid;
+import(`../assets/dungeon_trials/${gridName}.js`).then(module => {
+  grid = module.default;
+}).catch(error => {
+  console.error("Failed to load the grid:", error);
+});
 
 export default class DungeonScene extends Phaser.Scene {
   constructor() {
@@ -14,106 +17,130 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   preload() {
-    // static tilesets
-    this.load.image("wallsFloor",        "../tilesets/walls_floor.png");
-    this.load.image("cracksFloor",      "../tilesets/decorative_cracks_floor.png");
-    this.load.image("cracksWalls",      "../tilesets/decorative_cracks_walls.png");
-    this.load.image("objects",          "../tilesets/Objects.png");
-
-    // animated tilesheets (32×32 frames)
-    this.load.spritesheet("cracksCoastAnim",  "../tilesets/decorative_cracks_coasts_animation.png", { frameWidth:32, frameHeight:32 });
-    this.load.spritesheet("waterCoastAnim",   "../tilesets/Water_coasts_animation.png",            { frameWidth:32, frameHeight:32 });
-    this.load.spritesheet("waterDetailAnim",  "../tilesets/water_details_animation.png",           { frameWidth:32, frameHeight:32 });
-    this.load.spritesheet("doorAnim",         "../tilesets/doors_lever_chest_animation.png",       { frameWidth:32, frameHeight:32 });
-    this.load.spritesheet("fireAnim",         "../tilesets/fire_animation.png",                    { frameWidth:32, frameHeight:32 });
-    this.load.spritesheet("trapAnim",         "../tilesets/trap_animation.png",                    { frameWidth:32, frameHeight:32 });
+    // Load tilesets
+    this.load.image("wallFloor", "../assets/dungeon_tilesets/wall_floor.png");
+    this.load.image("character", "../assets/dungeon_tilesets/character.png");
+    this.load.image("characterR", "../assets/dungeon_tilesets/character_reverse.png");
+    this.load.image("object", "../assets/dungeon_tilesets/objects.png");
+    this.load.image("doorLever", "../assets/dungeon_tilesets/door_lever.png");
   }
 
   create() {
-    const grid = JSON.parse(gridStr);
-
+    // Create blank map
     const map = this.make.tilemap({
-      tileWidth: 32,
-      tileHeight: 32,
-      width:  grid.width,
+      tileWidth: 16,
+      tileHeight: 16,
+      width: grid.width,
       height: grid.height
     });
 
-    // register each image/spritesheet as a separate Tileset
-    const tsBase       = map.addTilesetImage("walls_floor",       "wallsFloor");
-    const tsCrackFloor = map.addTilesetImage("cracks_floor",      "cracksFloor");
-    const tsCrackWall  = map.addTilesetImage("cracks_walls",      "cracksWalls");
-    const tsObjects    = map.addTilesetImage("Objects",           "objects");
-    const tsCrackCoast = map.addTilesetImage("cracks_coast_anim", "cracksCoastAnim");
-    const tsWaterCoast = map.addTilesetImage("water_coast_anim",  "waterCoastAnim");
-    const tsWaterDet   = map.addTilesetImage("water_detail_anim", "waterDetailAnim");
-    const tsDoors      = map.addTilesetImage("door_anim",         "doorAnim");
-    const tsFire       = map.addTilesetImage("fire_anim",         "fireAnim");
-    const tsTrap       = map.addTilesetImage("trap_anim",         "trapAnim");
+    // Add tilesets
+    const tsWallFloor = map.addTilesetImage("wallFloor", "wallFloor");
+    const tsCharacter = map.addTilesetImage("character", "character");
+    const tsCharacterReverse = map.addTilesetImage("characterR", "characterR");
+    const tsObjects = map.addTilesetImage("object", "object");
+    const tsDoorLever = map.addTilesetImage("doorLever", "doorLever");
 
-    const allTilesets = [
-      tsBase, tsCrackFloor, tsCrackWall,
-      tsObjects, tsCrackCoast, tsWaterCoast,
-      tsWaterDet, tsDoors, tsFire, tsTrap
-    ];
+    const allTilesets = [tsWallFloor, tsCharacter, tsCharacterReverse, tsObjects, tsDoorLever];
 
-    // create layers
-    const floorLayer = map.createBlankLayer("Floor",       allTilesets);
-    const wallLayer  = map.createBlankLayer("Walls",       allTilesets);
-    const objLayer   = map.createBlankLayer("Objects",     allTilesets);
-    const decoLayer  = map.createBlankLayer("Decorations", allTilesets);
-    const animLayer  = map.createBlankLayer("Animations",  allTilesets);
+    // Create layers
+    this.floor = map.createBlankLayer("Floor", allTilesets);
+    this.walls = map.createBlankLayer("Wall", allTilesets);
+    this.objects = map.createBlankLayer("Object", allTilesets);
+    this.characters = map.createBlankLayer("Character", allTilesets);
+    this.foreground = map.createBlankLayer("Foreground", allTilesets);
 
-    // 1) FLOORS
-    grid.floor.forEach(({ variant, x, y }) => {
-      floorLayer.putTileAt(TILES.FLOOR[variant], x, y);
-    });
+    // Process the layout
+    this.processLayout(grid);
 
-    // 2) WALLS
-    grid.walls.forEach(({ type, variant, x, y }) => {
-      wallLayer.putTileAt(TILES.WALL[type][variant], x, y);
-    });
+    // Set collision for walls and objects
+    this.walls.setCollisionByProperty({ collides: true });
+    this.objects.setCollisionByProperty({ collides: true });
 
-    // 3) WATER
-    grid.water.static.forEach(({ x, y }) => {
-      floorLayer.putTileAt(TILES.WATER.STATIC, x, y);
-    });
-    grid.water.coast_anim.forEach(({ frame, x, y }) => {
-      animLayer.putTileAt(TILES.WATER.COAST_ANIM[frame], x, y);
-    });
-    grid.water.details.forEach(({ frame, x, y }) => {
-      animLayer.putTileAt(TILES.WATER.DETAILS[frame], x, y);
-    });
+    // Set camera bounds
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+  }
 
-    // 4) DOORS
-    grid.doors.forEach(({ dir, state, x, y }) => {
-      wallLayer.putTileAt(TILES.DOOR[dir][state], x, y);
-    });
+  processLayout(grid) {
+    const wall_type = grid.wall_type;
+    const floor_type = grid.floor_type;
+    console.log(grid.floor_type);
 
-    // 5) TRAPS
-    grid.traps.forEach(({ type, x, y }) => {
-      objLayer.putTileAt(TILES.TRAP[type], x, y);
-    });
+    // Process each cell in the layout
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        const symbol = grid.layout[y][x];
+        const tileType = grid.symbols[symbol];
 
-    // 6) OBJECTS (barrels, crates, gold, keys…)
-    grid.objects.forEach(({ type, x, y }) => {
-      objLayer.putTileAt(TILES.OBJECT[type], x, y);
-    });
+        switch (tileType) {
+          case "WALL":
+            this.placeWall(x, y, wall_type);
+            break;
+          case "FLOOR":
+            this.placeFloor(x, y, floor_type);
+            break;
+          case "DOOR":
+            this.placeDoor(x, y);
+            break;
+          case "CHEST":
+          case "BARREL":
+          case "POT":
+          case "TORCH":
+            this.placeObject(x, y, tileType);
+            break;
+          case "ENEMY":
+          case "NPC":
+            this.placeCharacter(x, y, tileType);
+            break;
+          case "LEVER":
+            this.placeLever(x, y);
+            break;
+        }
+      }
+    }
+  }
 
-    // 7) DECORATIVE CRACKS & COASTS
-    grid.decor.cracks_floor.forEach(({ variant, x, y }) => {
-      decoLayer.putTileAt(TILES.DECOR.CRACKS_FLOOR[variant], x, y);
-    });
-    grid.decor.cracks_walls.forEach(({ variant, x, y }) => {
-      decoLayer.putTileAt(TILES.DECOR.CRACKS_WALLS[variant], x, y);
-    });
-    grid.decor.coasts_anim.forEach(({ frame, x, y }) => {
-      animLayer.putTileAt(TILES.DECOR.COASTS_ANIM[frame], x, y);
-    });
+  placeWall(x, y, wall_type) {
+    // Place floor under wall
+    this.floor.putTileAt(TILES.FLOOR[floor_type], x, y);
+    
+    // Place wall
+    this.walls.putTileAt(TILES.WALL[wall_type].TOP, x, y);
+  }
 
-    // 8) FIRE (torches, braziers…)
-    grid.fire.forEach(({ state, x, y }) => {
-      animLayer.putTileAt(TILES.FIRE[state], x, y);
-    });
+  placeFloor(x, y, floor_type) {
+    this.floor.putTileAt(TILES.FLOOR[floor_type], x, y);
+  }
+
+  placeDoor(x, y) {
+    // Place floor under door
+    this.floor.putTileAt(TILES.FLOOR[grid.floor_type], x, y);
+    
+    // Place door
+    this.objects.putTileAt(TILES.DOOR.HORIZONTAL.CLOSED, x, y);
+  }
+
+  placeObject(x, y, type) {
+    // Place floor under object
+    this.floor.putTileAt(TILES.FLOOR[grid.floor_type], x, y);
+    
+    // Place object
+    this.objects.putTileAt(TILES.OBJECT[type], x, y);
+  }
+
+  placeCharacter(x, y, type) {
+    // Place floor under character
+    this.floor.putTileAt(TILES.FLOOR[grid.floor_type], x, y);
+    
+    // Place character
+    this.characters.putTileAt(TILES.CHARACTER[type], x, y);
+  }
+
+  placeLever(x, y) {
+    // Place floor under lever
+    this.floor.putTileAt(TILES.FLOOR[grid.floor_type], x, y);
+    
+    // Place lever
+    this.objects.putTileAt(TILES.LEVER.OFF, x, y);
   }
 }

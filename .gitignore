@@ -167,6 +167,9 @@ cython_debug/
 logs/
 output/
 /data/gpqa/
-.DS_Store
+*.DS_Store
 others/
 valley/game_assets/
+node_modules/
+*./node_modules/
+*./.node_modules/
