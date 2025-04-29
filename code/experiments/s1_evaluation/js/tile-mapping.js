@@ -54,8 +54,8 @@ const TILE_MAPPING = {
     ],
   },
   CHEST: [
-    [524, 525],
-    [544, 545]
+    [98, 99],
+    [118, 119]
 ],
   STAIRS: 560,
   // prettier-ignore

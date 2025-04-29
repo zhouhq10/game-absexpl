@@ -2,6 +2,7 @@
     // "deploy": "gh-pages --branch gh-pages --dist s1_evaluation"
 
 # TODO
-- the transparency of the room is not correct right now
-- Change the tile sprites
-- Add function to pre-define the location of the target/endroom
+-[x] the transparency of the room is not correct right now
+-[x] Change the tile sprites
+-[x] Add function to pre-define the location of the target/endroom
+- 

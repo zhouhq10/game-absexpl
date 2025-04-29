@@ -295,17 +295,35 @@ export default class DungeonScene extends Phaser.Scene {
     //   faceColor: new Phaser.Display.Color(40, 39, 37, 255)
     // });
 
-    this.stuffLayer.setTileIndexCallback(TILES.CHEST, () => {
-      this.stuffLayer.setTileIndexCallback(TILES.CHEST, null);
-      this.hasPlayerReachedStairs = true;
-      this.player.freeze();
-      const cam = this.cameras.main;
-      cam.fade(250, 0, 0, 0);
-      cam.once("camerafadeoutcomplete", () => {
-        this.player.destroy();
-        this.scene.restart();
+    for (const tileIndex of TILES.CHEST) {
+      this.stuffLayer.setTileIndexCallback(tileIndex, () => {
+        // Remove callbacks for all chest tiles after triggering
+        for (const index of TILES.CHEST) {
+          this.stuffLayer.setTileIndexCallback(index, null);
+        }
+    
+        this.hasPlayerReachedStairs = true;
+        this.player.freeze();
+    
+        const cam = this.cameras.main;
+        cam.fade(250, 0, 0, 0);
+        cam.once("camerafadeoutcomplete", () => {
+          this.player.destroy();
+          this.scene.restart();
+        });
       });
-    });
+    }
+    // this.stuffLayer.setTileIndexCallback(TILES.CHEST, () => {
+    //   this.stuffLayer.setTileIndexCallback(TILES.CHEST, null);
+    //   this.hasPlayerReachedStairs = true;
+    //   this.player.freeze();
+    //   const cam = this.cameras.main;
+    //   cam.fade(250, 0, 0, 0);
+    //   cam.once("camerafadeoutcomplete", () => {
+    //     this.player.destroy();
+    //     this.scene.restart();
+    //   });
+    // });
 
     // Place the player in the first room
     const playerRoom = startRoom;
