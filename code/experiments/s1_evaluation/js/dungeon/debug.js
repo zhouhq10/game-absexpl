@@ -73,7 +73,11 @@ export function debugMap(dungeon, config = {}) {
       floorColor: "rgb(210, 210, 210)",
       door: ".",
       doorColor: "rgb(0, 0, 255)",
-      fontSize: "15px"
+      fontSize: "15px",
+      box: "O",
+      boxColor: "rgb(0, 255, 0)",
+      chest: "*",
+      chestColor: "rgb(211, 185, 40)"
     },
     config
   );
@@ -102,6 +106,12 @@ export function debugMap(dungeon, config = {}) {
       } else if (tile === TILES.DOOR) {
         string += `%c${config.door}`;
         styles.push(`color: ${config.doorColor}; font-size: ${config.fontSize}`);
+      } else if (tile === TILES.BOX) {
+        string += `%c${config.box}`;
+        styles.push(`color: ${config.boxColor}; font-size: ${config.fontSize}`);
+      } else if (tile === TILES.CHEST) {
+        string += `%c${config.chest}`;
+        styles.push(`color: ${config.chestColor}; font-size: ${config.fontSize}`);
       }
       string += " ";
     }

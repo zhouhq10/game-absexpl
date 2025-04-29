@@ -4,11 +4,11 @@ import TilemapVisibility from "./tilemap-visibility.js";
 // import PredefinedDungeon from './predefined-dungeon';
 
 import Dungeon from './dungeon/dungeon.js';
-import { dungeonData } from '../../assets/dungeonData.js';
+import { dungeonData } from '../../assets/room1.js';
 const tmp_rooms = dungeonData.rooms;
-const tmp_roomGrid = dungeonData.roomGrid;
 const tmp_tiles = dungeonData.tiles;
 
+const SCLAE = 3;
 /**
  * Scene that generates a new dungeon
  */
@@ -18,17 +18,30 @@ export default class DungeonScene extends Phaser.Scene {
     this.level = 0;
   }
 
+  // preload() {
+  //   // Load the assets before the scene is created
+  //   this.load.image("tiles", "../assets/tilesets/tilesetall-48.png");
+  //   this.load.spritesheet(
+  //     "characters",
+  //     "../assets/tilesets/agent-64.png",
+  //     {
+  //       frameWidth: 64,
+  //       frameHeight: 64,
+  //       margin: 1,
+  //       spacing: 2,
+  //     }
+  //   );
+  // }
+
   preload() {
     // Load the assets before the scene is created
-    this.load.image("tiles", "../assets/tilesets/buch-tileset-48px-extruded.png");
+    this.load.image("tiles", "../assets/tilesets/tilesetall-16.png");
     this.load.spritesheet(
       "characters",
-      "../assets/spritesheets/buch-characters-64px-extruded.png",
+      "../assets/tilesets/agent-16.png",
       {
-        frameWidth: 64,
-        frameHeight: 64,
-        margin: 1,
-        spacing: 2,
+        frameWidth: 16,
+        frameHeight: 16
       }
     );
   }
@@ -42,26 +55,42 @@ export default class DungeonScene extends Phaser.Scene {
     //  - Doors should be at least 2 tiles away from corners, so that we can place a corner tile on
     //    either side of the door location
     // Source: https://github.com/mikewesthad/dungeon
-    this.dungeon = new Dungeon({
-      width: 15,
-      height: 15,
-      doorPadding: 2, // Doors are 2 tiles away from corners
-      // rooms: tmp_rooms,
-      // roomGrid: tmp_roomGrid,
-      // tiles: tmp_tiles,
-      rooms: {
-        width: { min: 5, max: 7, onlyOdd: true },
-        height: { min: 5, max: 7, onlyOdd: true },
-      },
-      usePredefinedRooms: true,
-      predefinedRooms: tmp_rooms,
-      predefinedRoomGrid: tmp_roomGrid,
-      predefinedTiles: tmp_tiles,
-    });
+
+    // Configuration for dungeon generation
+    const dungeonConfig = {
+      usePredefined: true, // Set to false for random generation
+      predefinedData: dungeonData,
+      prettyData: true,
+      randomConfig: {
+        width: 16,
+        height: 16,
+        doorPadding: 2,
+        rooms: {
+          width: { min: 5, max: 13, onlyOdd: true },
+          height: { min: 5, max: 13, onlyOdd: true },
+        }
+      }
+    };
+
+    console.log(dungeonConfig.predefinedData.rooms);
+
+    if (dungeonConfig.usePredefined) {
+      // Use predefined dungeon layout
+      this.dungeon = new Dungeon({
+        width: dungeonConfig.predefinedData.env_width,
+        height: dungeonConfig.predefinedData.env_height,
+        usePredefinedRooms: true,
+        predefinedRooms: dungeonConfig.predefinedData.rooms,
+        predefinedTiles: dungeonConfig.predefinedData.tiles,
+        predefinedVisualTiles: dungeonConfig.predefinedData.visualTiles
+      });
+    } else {
+      // Generate random dungeon
+      this.dungeon = new Dungeon(dungeonConfig.randomConfig);
+    }
 
     // Output the dungeon layout to the console for debugging
     console.log(this.dungeon.rooms);
-    console.log(this.dungeon.roomGrid);
     console.log(this.dungeon.tiles);
     this.dungeon.drawToConsole();
 
@@ -90,20 +119,20 @@ export default class DungeonScene extends Phaser.Scene {
 
     // !! Creating a blank tilemap with dimensions matching the dungeon
     const map = this.make.tilemap({
-      tileWidth: 48,
-      tileHeight: 48,
+      tileWidth: 16 * SCLAE, 
+      tileHeight: 16 * SCLAE,
       width: this.dungeon.width,
       height: this.dungeon.height,
     });
     // - 1px margin, 2px spacing
     // - - Margin is the space around the edges of the tileset
     // - - Spacing is the space between the individual tiles
-    const tileset = map.addTilesetImage("tiles", null, 48, 48, 1, 2); 
+    // const tileset = map.addTilesetImage("tiles", null, 48, 48, 1, 2); 
+    const tileset = map.addTilesetImage("tiles", null, 16, 16);
     this.groundLayer = map.createBlankLayer("Ground", tileset).fill(TILES.BLANK);
     this.stuffLayer = map.createBlankLayer("Stuff", tileset);
-    const shadowLayer = map.createBlankLayer("Shadow", tileset).fill(TILES.BLANK);
 
-    // TODO: test this out
+    const shadowLayer = map.createBlankLayer("Shadow", tileset).fill(TILES.BLANK);
     this.tilemapVisibility = new TilemapVisibility(shadowLayer);
 
     // !! Use the array of rooms generated to place tiles in the map
@@ -121,16 +150,18 @@ export default class DungeonScene extends Phaser.Scene {
       // - - top: topmost row of the room
       // - - bottom: bottommost row of the room
 
-      // Fill the floor with mostly clean tiles
+      // !! Fill those that are possible to fill 
+      // -> which can be changed in the pre-defined situation
+      // - Fill the floor with mostly clean tiles
       this.groundLayer.weightedRandomize(TILES.FLOOR, x + 1, y + 1, width - 2, height - 2);
 
-      // Place the room corners tiles
+      // - Place the room corners tiles
       this.groundLayer.putTileAt(TILES.WALL.TOP_LEFT, left, top);
       this.groundLayer.putTileAt(TILES.WALL.TOP_RIGHT, right, top);
       this.groundLayer.putTileAt(TILES.WALL.BOTTOM_RIGHT, right, bottom);
       this.groundLayer.putTileAt(TILES.WALL.BOTTOM_LEFT, left, bottom);
 
-      // Fill the walls with mostly clean tiles
+      // - Fill the walls with mostly clean tiles
       this.groundLayer.weightedRandomize(TILES.WALL.TOP, left + 1, top, width - 2, 1);
       this.groundLayer.weightedRandomize(TILES.WALL.BOTTOM, left + 1, bottom, width - 2, 1);
       this.groundLayer.weightedRandomize(TILES.WALL.LEFT, left, top + 1, 1, height - 2);
@@ -150,23 +181,73 @@ export default class DungeonScene extends Phaser.Scene {
           this.groundLayer.putTilesAt(TILES.DOOR.RIGHT, x + doors[i].x, y + doors[i].y - 1);
         }
       }
+
+      // !! More fine-grained control over the tiles
+      if (dungeonConfig.usePredefined && dungeonConfig.prettyData) {
+        // For predefined rooms, use both semantic and visual tile layouts from the data
+        for (let row = 0; row < height; row++) {
+          for (let col = 0; col < width; col++) {
+            const semanticTile = room.tiles[row][col];
+            const visualTile = this.dungeon.visualTiles[row+y][col+x] - 1;
+            
+            // 1. Floor 
+            if (semanticTile === 2 && visualTile > -1) {
+              this.groundLayer.putTileAt(visualTile, x + col, y + row);
+            }
+
+            // 2. Wall
+            // Use semantic tiles for collision detection
+            if (semanticTile === 1 && visualTile > -1) { // Wall
+              this.groundLayer.setCollision(x + col, y + row);
+              this.groundLayer.putTileAt(visualTile, x + col, y + row);
+            }
+
+            // 3. Objects (Boxes)
+            if (semanticTile === 4) {
+              if (visualTile > -1) {
+                this.stuffLayer.putTileAt(visualTile, x + col, y + row); // Check size
+              } else {
+                this.groundLayer.weightedRandomize(TILES.BOX, x + col, y + row, 1, 2);
+              }
+            }
+
+            // 4. Chests
+            if (semanticTile === 5 && visualTile > -1) {
+              this.stuffLayer.putTileAt(visualTile, x + col, y + row);
+            }
+          }
+        }
+      }
     });
 
     // Separate out the rooms into:
     //  - The starting room (index = 0)
     //  - A random room to be designated as the end room (with stairs and nothing else)
     //  - An array of 90% of the remaining rooms, for placing random stuff (leaving 10% empty)
-    const rooms = this.dungeon.rooms.slice(); // → Returns a shallow copy of the rooms array
-    const startRoom = rooms.shift(); // → Removes the first element from the array and returns it
-    const endRoom = Phaser.Utils.Array.RemoveRandomElement(rooms); // → Removes a random element from the array and returns it  
-    // - If there is only one room left, then the otherRooms array is the only room left; otherwise,
-    //   it is a shuffled copy of the remaining rooms, with 90% of the elements
-    const otherRooms = rooms.length === 1 ? rooms : Phaser.Utils.Array.Shuffle(rooms).slice(0, rooms.length * 0.9); // → Returns a shuffled copy of the array, with 90% of the elements
-
-    // Place the stairs
-    this.stuffLayer.putTileAt(TILES.STAIRS, endRoom.centerX, endRoom.centerY);
+    let startRoom, endRoom, otherRooms;
+    if (dungeonConfig.usePredefined) {
+      if (dungeonConfig.prettyData) {
+        startRoom = this.dungeon.rooms[0];
+        console.log(startRoom);
+        endRoom = this.dungeon.rooms[this.dungeon.rooms.length - 1];
+      } else {
+        startRoom = this.dungeon.rooms[0];
+        endRoom = Phaser.Utils.Array.RemoveRandomElement(this.dungeon.rooms);
+        otherRooms = this.dungeon.rooms.slice(1, this.dungeon.rooms.length * 0.9);
+        this.stuffLayer.putTileAt(TILES.CHEST, endRoom.centerX, endRoom.centerY);
+      }
+    } else {
+      const rooms = this.dungeon.rooms.slice(); // → Returns a shallow copy of the rooms array
+      const startRoom = rooms.shift(); // → Removes the first element from the array and returns it
+      const endRoom = Phaser.Utils.Array.RemoveRandomElement(rooms); // → Removes a random element from the array and returns it  
+      // - If there is only one room left, then the otherRooms array is the only room left; otherwise,
+      //   it is a shuffled copy of the remaining rooms, with 90% of the elements
+      const otherRooms = rooms.length === 1 ? rooms : Phaser.Utils.Array.Shuffle(rooms).slice(0, rooms.length * 0.9); // → Returns a shuffled copy of the array, with 90% of the elements  
+      this.stuffLayer.putTileAt(TILES.CHEST, endRoom.centerX, endRoom.centerY);
+    }
 
     // Place stuff in the 90% "otherRooms"
+    if (!dungeonConfig.usePredefined) {
     otherRooms.forEach((room) => {
       const rand = Math.random();
       if (rand <= 0.25) {
@@ -188,16 +269,34 @@ export default class DungeonScene extends Phaser.Scene {
           this.stuffLayer.putTilesAt(TILES.TOWER, room.centerX - 1, room.centerY - 1);
           this.stuffLayer.putTilesAt(TILES.TOWER, room.centerX + 1, room.centerY - 1);
         }
-      }
-    });
+        }
+      });
+    }
 
     // Not exactly correct for the tileset since there are more possible floor tiles, but this will
     // do for the example.
-    this.groundLayer.setCollisionByExclusion([-1, 6, 7, 8, 26]);
-    this.stuffLayer.setCollisionByExclusion([-1, 6, 7, 8, 26]);
+    // this.groundLayer.setCollisionByExclusion([-1, 6, 7, 8, 26]);
+    // this.stuffLayer.setCollisionByExclusion([-1, 6, 7, 8, 26]);
+    this.groundLayer.setCollisionByExclusion([142, 247, 248, 267, 268, 560]);
+    // Set collision for specific stuff layer tiles
+    // this.stuffLayer.setCollision([
+    //   TILES.CHEST[0][0], TILES.CHEST[0][1], TILES.CHEST[1][0], TILES.CHEST[1][1], // Chest tiles
+    //   TILES.POT[0], TILES.POT[1], TILES.POT[2], // Pot tiles
+    //   TILES.TOWER[0][0], TILES.TOWER[1][0] // Tower tiles
+    // ]);
+    // Enable physics for the stuff layer
+    this.stuffLayer.setCollisionBetween(0, 1000);
 
-    this.stuffLayer.setTileIndexCallback(TILES.STAIRS, () => {
-      this.stuffLayer.setTileIndexCallback(TILES.STAIRS, null);
+    // // Add debug visualization
+    // const debugGraphics = this.add.graphics().setAlpha(0.75);
+    // this.stuffLayer.renderDebug(debugGraphics, {
+    //   tileColor: null,
+    //   collidingTileColor: new Phaser.Display.Color(243, 134, 48, 255),
+    //   faceColor: new Phaser.Display.Color(40, 39, 37, 255)
+    // });
+
+    this.stuffLayer.setTileIndexCallback(TILES.CHEST, () => {
+      this.stuffLayer.setTileIndexCallback(TILES.CHEST, null);
       this.hasPlayerReachedStairs = true;
       this.player.freeze();
       const cam = this.cameras.main;
@@ -213,10 +312,12 @@ export default class DungeonScene extends Phaser.Scene {
     const x = map.tileToWorldX(playerRoom.centerX);
     const y = map.tileToWorldY(playerRoom.centerY);
     this.player = new Player(this, x, y);
+    this.player.sprite.setScale(SCLAE);
 
     // Watch the player and tilemap layers for collisions, for the duration of the scene:
-    this.physics.add.collider(this.player.sprite, this.groundLayer);
     this.physics.add.collider(this.player.sprite, this.stuffLayer);
+    this.physics.add.collider(this.player.sprite, this.groundLayer);
+    
 
     // Phaser supports multiple cameras, but you can access the default camera like this:
     const camera = this.cameras.main;
@@ -225,15 +326,15 @@ export default class DungeonScene extends Phaser.Scene {
     camera.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     camera.startFollow(this.player.sprite);
 
-    // Help text that has a "fixed" position on the screen
-    this.add
-      .text(16, 16, `Find the stairs. Go deeper.\nCurrent level: ${this.level}`, {
-        font: "18px monospace",
-        fill: "#000000",
-        padding: { x: 20, y: 10 },
-        backgroundColor: "#ffffff",
-      })
-      .setScrollFactor(0);
+    // // Help text that has a "fixed" position on the screen
+    // this.add
+    //   .text(16, 16, `Find the stairs. Go deeper.\nCurrent level: ${this.level}`, {
+    //     font: "18px monospace",
+    //     fill: "#000000",
+    //     padding: { x: 20, y: 10 },
+    //     backgroundColor: "#ffffff",
+    //   })
+    //   .setScrollFactor(0);
   }
 
   update(time, delta) {

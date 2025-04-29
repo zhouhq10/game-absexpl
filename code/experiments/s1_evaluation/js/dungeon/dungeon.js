@@ -5,50 +5,51 @@ import TILES from "./tiles.js";
 import { debugMap, debugHtmlMap } from "./debug.js";
 
 const defaultConfig = {
-  width: 15,
-  height: 15,
   randomSeed: undefined,
   doorPadding: 1, // Experimental, minimum number of tiles between a door and a room corner (>= 1)
-  usePredefinedRooms: false, // New option to use predefined rooms from dungeonData.js
   rooms: {
-    width: { min: 5, max: 15, onlyOdd: false, onlyEven: false },
-    height: { min: 5, max: 15, onlyOdd: false, onlyEven: false },
+    width: { min: 3, max: 15, onlyOdd: false, onlyEven: false },
+    height: { min: 3, max: 15, onlyOdd: false, onlyEven: false },
     maxArea: 150,
     maxRooms: 50
   },
   predefinedRooms: [],
-  predefinedRoomGrid: [],
   predefinedTiles: [],
+  predefinedVisualTiles: []
 };
 
 export default class Dungeon {
   constructor(config = {}) {
-    const rooms = config.rooms || {};
-    rooms.width = Object.assign({}, defaultConfig.rooms.width, rooms.width);
-    rooms.height = Object.assign({}, defaultConfig.rooms.height, rooms.height);
-    rooms.maxArea = rooms.maxArea || defaultConfig.rooms.maxArea;
-    rooms.maxRooms = rooms.maxRooms || defaultConfig.rooms.maxRooms;
+    // For debugging purposes I will temporarily comment out the following code
+    // const rooms = config.rooms || defaultConfig.rooms;
+    // rooms.width = Object.assign({}, defaultConfig.rooms.width, rooms.width);
+    // rooms.height = Object.assign({}, defaultConfig.rooms.height, rooms.height);
+    // rooms.maxArea = rooms.maxArea || defaultConfig.rooms.maxArea;
+    // rooms.maxRooms = rooms.maxRooms || defaultConfig.rooms.maxRooms;
 
-    // Validate room size
-    if (rooms.width.min < 3) rooms.width.min = 3;
-    if (rooms.height.min < 3) rooms.height.min = 3;
-    if (rooms.width.max < rooms.width.min) rooms.width.max = rooms.width.min;
-    if (rooms.height.max < rooms.height.min) rooms.height.max = rooms.height.min;
+    // // Validate room size
+    // if (rooms.width.min < 3) rooms.width.min = 3;
+    // if (rooms.height.min < 3) rooms.height.min = 3;
+    // if (rooms.width.max < rooms.width.min) rooms.width.max = rooms.width.min;
+    // if (rooms.height.max < rooms.height.min) rooms.height.max = rooms.height.min;
 
-    // Avoid an impossibly small maxArea
-    const minArea = rooms.width.min * rooms.height.min;
-    if (rooms.maxArea < minArea) rooms.maxArea = minArea;
+    // // Avoid an impossibly small maxArea
+    // const minArea = rooms.width.min * rooms.height.min;
+    // if (rooms.maxArea < minArea) rooms.maxArea = minArea;
+    // this.roomConfig = rooms
 
     this.doorPadding = config.doorPadding || defaultConfig.doorPadding;
     this.width = config.width || defaultConfig.width;
     this.height = config.height || defaultConfig.height;
-    this.roomConfig = rooms;
+    
     this.rooms = [];
     this.usePredefinedRooms = config.usePredefinedRooms || defaultConfig.usePredefinedRooms;
     this.predefinedRooms = config.predefinedRooms || defaultConfig.predefinedRooms;
-    this.predefinedRoomGrid = config.predefinedRoomGrid || defaultConfig.predefinedRoomGrid;
     this.predefinedTiles = config.predefinedTiles || defaultConfig.predefinedTiles;
-    
+    this.visualTiles = config.predefinedVisualTiles || defaultConfig.predefinedVisualTiles;
+    console.log("predefinedRooms");
+    console.log(this.predefinedRooms);
+
     // Initialize random number generator
     this.r = new Random(config.randomSeed);
 
@@ -56,8 +57,16 @@ export default class Dungeon {
     // that location
     this.roomGrid = [];
 
+    console.log("rooms before generate");
+    console.log(this.rooms);
     this.generate();
-    this.tiles = this.usePredefinedRooms ? this.predefinedTiles : this.getTiles();
+    
+    // If using predefined rooms, combine their tiles into a complete dungeon matrix
+    if (this.usePredefinedRooms) {
+      this.tiles = this.combineRoomTiles();
+    } else {
+      this.tiles = this.getTiles();
+    }
   }
 
   drawToConsole(config) {
@@ -82,7 +91,7 @@ export default class Dungeon {
     // If we are using predefined rooms, generate the dungeon from the predefined rooms
     if (this.usePredefinedRooms) {
       this.generateFromPredefinedRooms();
-      return;
+      return; 
     }
 
     // Seed the map with a starting randomly sized room in the center of the map
@@ -136,24 +145,6 @@ export default class Dungeon {
       }
     }
 
-    // // Use the predefined roomGrid if available
-    // if (this.predefinedRoomGrid && this.predefinedRoomGrid.length > 0) {
-    //   this.roomGrid = JSON.parse(JSON.stringify(this.predefinedRoomGrid));
-    // } else {
-    //   // Initialize empty roomGrid if predefined one isn't available
-    //   for (let y = 0; y < this.height; y++) {
-    //     this.roomGrid.push([]);
-    //     for (let x = 0; x < this.width; x++) {
-    //       this.roomGrid[y].push([]);
-    //     }
-    //   }
-    // }
-
-
-    // Use predefined tiles if available
-    if (this.predefinedTiles && this.predefinedTiles.length > 0) {
-      this.tiles = JSON.parse(JSON.stringify(this.predefinedTiles));
-    }
   }
 
   getRoomAt(x, y) {
@@ -175,7 +166,11 @@ export default class Dungeon {
 
   addRoom(room) {
     // if the room won't fit, we don't add it
-    if (!this.canFitRoom(room)) return false;
+    if (!this.canFitRoom(room)) {
+      console.log("room won't fit");
+      console.log(room);
+      return false;
+    }
 
     this.rooms.push(room);
 
@@ -191,12 +186,23 @@ export default class Dungeon {
 
   canFitRoom(room) {
     // Make sure the room fits inside the dungeon
-    if (room.x < 0 || room.x + room.width > this.width - 1) return false;
-    if (room.y < 0 || room.y + room.height > this.height - 1) return false;
-
+    if (room.x < 0 || room.x + room.width > this.width) { // TODO: why is this -1?
+      console.log("condition 1");
+      console.log(room);
+      return false;
+    }
+    if (room.y < 0 || room.y + room.height > this.height) {
+      console.log("condition 2");
+      console.log(room);
+      return false;
+    }
     // Make sure this room doesn't intersect any existing rooms
     for (let i = 0; i < this.rooms.length; i++) {
-      if (room.overlaps(this.rooms[i])) return false;
+      if (room.overlaps(this.rooms[i])) {
+        console.log("condition 3");
+        console.log(room);
+        return false;
+      }
     }
 
     return true;
@@ -399,5 +405,29 @@ export default class Dungeon {
       // set the tile to be a door
       r.tiles[y][x] = TILES.DOOR;
     }
+  }
+
+  combineRoomTiles() {
+    // Create an empty matrix for the entire dungeon
+    const tiles = Array(this.height);
+    for (let y = 0; y < this.height; y++) {
+      tiles[y] = Array(this.width);
+      for (let x = 0; x < this.width; x++) {
+        tiles[y][x] = 0 // TILES.EMPTY;
+      }
+    }
+
+    // Fill in the matrix with tiles from each room
+    this.predefinedRooms.forEach(room => {
+      // Handle semantic tiles
+      for (let row = 0; row < room.height; row++) {
+        for (let col = 0; col < room.width; col++) {
+          const semanticTile = room.tiles[row][col];
+          tiles[room.y + row][room.x + col] = semanticTile;
+        }
+      }
+    });
+
+    return tiles;
   }
 }

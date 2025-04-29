@@ -3,3 +3,5 @@
 
 # TODO
 - the transparency of the room is not correct right now
+- Change the tile sprites
+- Add function to pre-define the location of the target/endroom

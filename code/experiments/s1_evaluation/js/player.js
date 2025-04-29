@@ -5,18 +5,21 @@ export default class Player {
     const anims = scene.anims;
     anims.create({
       key: "player-walk",
-      frames: anims.generateFrameNumbers("characters", { start: 46, end: 49 }),
+      // frames: anims.generateFrameNumbers("characters", { start: 46, end: 49 }),
+      frames: anims.generateFrameNumbers("characters", { start: 8, end: 11 }),
       frameRate: 8,
       repeat: -1,
     });
     anims.create({
       key: "player-walk-back",
-      frames: anims.generateFrameNumbers("characters", { start: 65, end: 68 }),
+      // frames: anims.generateFrameNumbers("characters", { start: 65, end: 68 }),
+      frames: anims.generateFrameNumbers("characters", { start: 0, end: 3 }),
       frameRate: 8,
       repeat: -1,
     });
 
-    this.sprite = scene.physics.add.sprite(x, y, "characters", 0).setSize(22, 33).setOffset(23, 27);
+    // this.sprite = scene.physics.add.sprite(x, y, "characters", 0).setSize(22, 33).setOffset(23, 27);
+    this.sprite = scene.physics.add.sprite(x, y, "characters", 0).setSize(8, 11);
 
     this.sprite.anims.play("player-walk-back");
 
@@ -63,9 +66,11 @@ export default class Player {
     } else {
       sprite.anims.stop();
 
-      // If we were moving, pick and idle frame to use
-      if (prevVelocity.y < 0) sprite.setTexture("characters", 65);
-      else sprite.setTexture("characters", 46);
+      // // If we were moving, pick and idle frame to use
+      // if (prevVelocity.y < 0) sprite.setTexture("characters", 65);
+      // else sprite.setTexture("characters", 46);
+      if (prevVelocity.y < 0) sprite.setTexture("characters", 0);
+      else sprite.setTexture("characters", 4);
     }
   }
 
