@@ -11,10 +11,10 @@ class DungeonScene extends Phaser.Scene {
 
   preload() {
     // Load the assets before the scene is created
-    this.load.image("tiles", "s1_message/assets/tilesets/tilesetall-16.png");
+    this.load.image("tiles", "assets/tilesets/tilesetall-16.png");
     this.load.spritesheet(
       "characters",
-      "s1_message/assets/tilesets/agent-16.png",
+      "assets/tilesets/agent-16.png",
       {
         frameWidth: 16,
         frameHeight: 16
