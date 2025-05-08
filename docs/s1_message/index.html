@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+
+  <title> Explanation Experiment </title>
+  <!-- <link rel="icon" type="image/x-icon" href="favicon.png"> -->
+  <link rel="stylesheet" href='css/jspsych.css' />
+  <link rel="stylesheet" href='css/jquery-ui-edit.css' />
+  <link rel="stylesheet" href='css/jquery-ui-slider-pips-edit.css' />
+  <link rel="stylesheet" href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css' />
+  <link rel="stylesheet" href='css/utils.css' />
+
+  <script src="//cdn.jsdelivr.net/npm/@mikewesthad/dungeon@1.2.2"></script>
+  <script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+
+  <!-- <script src="dungeon.min.js"></script> -->
+  <script src="js/dungeon/room.js"></script>
+  <script src="js/dungeon/dungeon.js"></script>
+  <script src="js/dungeon/debug.js"></script>
+  <script src="js/dungeon/random.js"></script>
+  <script src="js/dungeon/player.js"></script>
+  <script src="js/dungeon/tile-mapping.js"></script>
+  <script src="js/dungeon/tilemap-visibility.js"></script>
+  <script src="js/dungeon/dungeon-scene.js"></script>
+  
+  <script src='js/core/jspsych.js'></script>
+  <script src='js/core/jquery.min.js'></script>
+  <script src='js/core/jquery-ui.min.js'></script>
+  <script src='js/core/jquery-ui-slider-pips.js'></script>
+  <script src='https://proliferate.alps.science/static/js/proliferate.js'></script>
+
+  <script src='js/plugin/plugin-html-button-response.js'></script>
+  <script src='js/plugin/plugin-survey-html-form.js'></script>
+  <script src='js/plugin/plugin-survey-multi-choice.js'></script>
+  <script src='js/plugin/plugin-preload.js'></script>
+  <script src='js/plugin/plugin-free-form-text.js'></script>
+  <script src='js/plugin/plugin-dungeon-player.js'></script>
+  <script src='js/plugin/timeme.min.js'></script>
+  <script src="js/dungeon/example_trial.js"></script>
+
+  <script src='js/form/consent.js'></script>
+  <script src='js/form/demographic-form.js'></script>
+  <script src='js/form/utils.js'></script>
+
+  <script src='assets/maps/example-rooms.js'></script>
+  <script src='assets/instructions/text.js'></script>
+  <script src='assets/instructions/instruction.js'></script>
+  <script src='assets/instructions/trial-info.js'></script>
+  
+
+  <style>
+    html,
+    body,
+    #game-container {
+      margin: 0;
+      padding: 0;
+    }
+
+    #game-container {
+      min-width: 100vw;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game-container > canvas {
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body></body>
+
+<script>
+  let condition = get_url_param('condition', 1);
+  console.log(condition);
+  let trial_info = null;
+  if (condition == 1) {
+        trial_info = trial_info1;
+    } else if (condition == 2) {
+        trial_info = trial_info2;
+    } else if (condition == 3) {
+        trial_info = trial_info3;
+    }
+
+  TimeMe.initialize({
+      currentPageName: 'page',
+      idleTimeoutInSeconds: 30 // mark users idle after 30 seconds
+  });
+
+  // -----------------------------------------------------
+  // Initialize jspsych
+  // -----------------------------------------------------
+  var jsPsych = initJsPsych({
+        show_progress_bar: true,
+        auto_update_progress_bar: false,
+        on_finish: () => {
+            time = TimeMe.getTimeOnPageInSeconds('page');
+
+            let data = jsPsych.data.get();
+
+            // copy all data
+            let trials_data = data 
+            let trials = [];
+            for (var i = 0; i < trials_data.length; i++) {
+                let trial = trials_data[i];
+                trials.push({
+                    'num': i + 1,
+                    'trial': trial['trial'],
+                    'message': trial['response']
+                });
+            }
+
+            let participant = data.filter({trial_type: 'survey-html-form'}).trials[0].response;
+            participant.time = time;
+            console.log(participant);
+
+            proliferate.submit({
+                "trials": trials,
+                "participants": [participant],
+            });
+
+            $('#jspsych-content').css('margin-top', 'auto');
+            $('#jspsych-content').html('<div style="margin: auto;"> <p>' +
+                ' Thank you for participating in this experiment! </p>' +
+                '<p> Redirecting you back to Prolific... </p>');
+            setTimeout(function(){}, 200);
+        }
+    });
+
+  // -----------------------------------------------------
+  // consent, instructions, and comprehension check
+  // -----------------------------------------------------
+  let preload_trial = {
+        type: jsPsychPreload,
+        images: preload_images.concat(trial_images)
+  };
+
+  let instructions = {
+      type: dungeonInstructions,
+      pages: instruction_pages,
+      show_clickable_nav: true,
+      on_start: function() { jsPsych.setProgressBar(0.02); },
+      on_finish: function() { jsPsych.setProgressBar(0.1); }
+  };
+
+  let example_trials = {
+        timeline_variables: example_trial_info,
+        timeline: [
+            {
+                type: dungeonExample,
+                extra_text: jsPsych.timelineVariable('extra_text1')
+            }
+        ],
+        trial: jsPsych.timelineVariable('trial'),
+        title: jsPsych.timelineVariable('title'),
+        mission: jsPsych.timelineVariable('mission'),
+        config: jsPsych.timelineVariable('config'),
+        randomize_order: false,
+        on_finish: function() {
+            var prog = jsPsych.getProgressBarCompleted();
+            jsPsych.setProgressBar(prog + 0.04);
+        }
+  };
+
+  let instructions_last = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: instructions_last_page,
+        choices: ['Continue'],
+        is_narrow: true,
+        on_finish: function() { jsPsych.setProgressBar(0.2); }
+    };
+
+  let comprehension_qs = {
+      type: jsPsychSurveyMultiChoice,
+      questions: [
+          {
+              prompt: comprehension1,
+              options: options1,
+              horizontal: true,
+              required: true
+          },
+          {
+              prompt: comprehension2,
+              options: options2,
+              horizontal: true,
+              required: true
+          },
+          {
+              prompt: comprehension3,
+              options: options3,
+              horizontal: true,
+              required: true
+          }
+      ],
+      preamble: 'Please answer a few questions so we know that you understand the instructions.',
+      on_finish: function(data){
+          data.correct = (data.response.Q0 == 'False'
+              && data.response.Q1 == 'True'
+              && data.response.Q2 == 'True');
+          jsPsych.setProgressBar(0.3);
+      }
+  };
+
+  let fail_comprehension = {
+      timeline: [{
+          type: jsPsychHtmlButtonResponse,
+          stimulus: '<p>Unfortunately, you missed some of the comprehension questions.</p> \
+                      <p>Please review the instructions again.</p>',
+          choices: ['Review'],
+      }],
+      conditional_function: function(){
+          var data = jsPsych.data.get().last(1).trials[0];
+          return !(data.correct);
+      }
+  };
+
+  let loop_node = {
+      timeline: [
+          instructions, // 0.1
+          example_trials, // 0.08
+          instructions_last, // 0.02
+          comprehension_qs, // 0.1
+          fail_comprehension
+      ],
+      loop_function: function(data){
+          var data = jsPsych.data.get().last(1).values()[0];
+          return !(data.correct);
+      }
+  };
+
+  let trials_start = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: start_prompt,
+        choices: ['Start'],
+        is_narrow: true,
+        on_finish: function() {
+          var prog = jsPsych.getProgressBarCompleted();
+          jsPsych.setProgressBar(prog + 0.05);
+        },
+    };
+
+  let message_trials = {
+    timeline: [
+      {
+        type: jsPsychSurveyHtmlForm,
+        preamble: function() {
+          return '<img src="' + jsPsych.timelineVariable('image') + '" style="max-width: 500px;">' + 
+          '<p>Please send a message to your seeker for this map. </p>' + 
+          '<p>Remember that your seeker cannot see the whole map. </p>';
+        },
+        html: '<p><label for="answer">Your message:</label><br><textarea name="answer" rows="6" cols="60" required></textarea></p>',
+        button_label: "Submit"
+      },
+    ],
+    timeline_variables: [
+      { image: "assets/images/room1.png" },
+      { image: "assets/images/room2.png" },
+      { image: "assets/images/room3.png" },
+      { image: "assets/images/room4.png" },
+      { image: "assets/images/room5.png" },
+      { image: "assets/images/room6.png" }
+    ],
+    on_finish: function() {
+        var prog = jsPsych.getProgressBarCompleted();
+        jsPsych.setProgressBar(prog + 0.1);
+    }
+  };
+
+let player_trials = {
+  timeline: [
+    {
+      type: jsPsychDungeonPlayerGivenMessage,
+      instructions: 'Go left and go up',
+      config: {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 800,
+            backgroundColor: "#000",
+            parent: "game-container",
+            pixelArt: true,
+            // scene: new DungeonScene(roomTest1Config),
+            physics: {
+              default: "arcade",
+              arcade: {
+                gravity: { y: 0 },
+              },
+            },
+          },
+    },
+  ],
+  on_finish: function() {
+        var prog = jsPsych.getProgressBarCompleted();
+        jsPsych.setProgressBar(prog + 0.02);
+    }
+}
+
+  // -----------------------------------------------------
+  // compile timeline
+  // -----------------------------------------------------
+  let timeline = [];
+  timeline.push(preload_trial);
+  timeline.push(consent);
+  timeline.push(loop_node); // 0.3
+  timeline.push(trials_start); // 0.05
+  timeline.push(message_trials); // 0.1 * 6
+  // timeline.push(player_trials);
+  timeline.push(demographic_form); // 0.05
+
+
+  // -----------------------------------------------------
+  // run timeline
+  // -----------------------------------------------------
+  jsPsych.run(timeline);
+</script>
+</html>
